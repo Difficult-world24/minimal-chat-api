@@ -14,6 +14,7 @@ import { RegisterUserDto } from './dto/register.dto';
 import { LoginUserDto } from './dto/login.dto';
 import { Jwtdto } from './dto/jwt.dto';
 import { ConfigService } from '@nestjs/config';
+import { userInclude } from './includes/user.include';
 
 @Injectable()
 export class AuthService {
@@ -23,7 +24,7 @@ export class AuthService {
     private readonly configService: ConfigService,
   ) {}
 
-  async register(user: RegisterUserDto): Promise<ApiResponseDto> {
+  async register(user: RegisterUserDto): Promise<ApiResponseDto<unknown>> {
     const rounds = parseInt(await this.configService.get('SALT_ROUNDS'));
     if (
       await this.prismaService.user.findFirst({
@@ -43,9 +44,10 @@ export class AuthService {
     const newUser = await this.prismaService.user.create({
       data: {
         email: user.email,
-        name: user.name,
+        username: user.name,
         password: hashedPassword,
       },
+      include: userInclude,
     });
 
     const token = await this.createPayload(newUser);
@@ -64,6 +66,7 @@ export class AuthService {
       where: {
         email: loginUser.email,
       },
+      include: userInclude,
     });
     if (!user) {
       throw new NotFoundException('user.doesnt.exists');
@@ -80,6 +83,7 @@ export class AuthService {
       where: {
         email: loginUser.email,
       },
+      include: userInclude,
     });
     if (!user) {
       throw new NotFoundException('user.doesnt.exists');
@@ -88,11 +92,12 @@ export class AuthService {
     return user;
   }
 
-  async login(user: LoginUserDto): Promise<ApiResponseDto> {
+  async login(user: LoginUserDto): Promise<ApiResponseDto<unknown>> {
     const userRecord = await this.prismaService.user.findFirst({
       where: {
         email: user.email,
       },
+      include: userInclude,
     });
     if (!userRecord) {
       throw new BadRequestException('User Not Found');
@@ -117,7 +122,7 @@ export class AuthService {
     };
   }
 
-  async refreshToken(user: User): Promise<ApiResponseDto> {
+  async refreshToken(user: User): Promise<ApiResponseDto<unknown>> {
     const token = await this.createPayload(user);
     return {
       data: {
